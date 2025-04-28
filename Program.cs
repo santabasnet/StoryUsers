@@ -21,7 +21,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
     );
 
-//builder.Services.AddControllers();
 // JWT Authentication Configuration
 var key = Encoding.ASCII.GetBytes("bf335d5b-9979-4699-a443-2ff42de9dc69");
 builder.Services.AddAuthentication(options =>
@@ -33,15 +32,20 @@ builder.Services.AddAuthentication(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = false,
-        ValidateAudience = false,
-        ValidateLifetime = true,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
-        ClockSkew = TimeSpan.Zero // No clock skew (tokens expire exactly after 15 minutes)
+        ValidateIssuer = true,
+        ValidIssuer = JwtHelper.Issuer,
+        ValidateAudience = true,
+        ValidAudience = JwtHelper.Audience,
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtHelper.JwtSecret)),
+        ValidateLifetime = true
     };
 });
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -51,27 +55,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-/*var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};*/
-
-/*
-* Demo Endpoint
-*/
-/*app.MapGet("/weatherforecast", () =>
-{
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");*/
 
 /* Ping Server Health Endpoint */
 app.MapGet("/", () => "Hello from Server >> " + DateTime.Now.ToString());
@@ -93,7 +76,7 @@ app.MapGet("/api/users/{id}", async (AppDbContext db, int id) =>
         return Results.NotFound(ResponseUtils.notFound(id));
     }
     return Results.Ok(user);
-});
+}).RequireAuthorization();
 
 /* List all Users */
 /*app.MapGet("/api/users", () =>
@@ -173,10 +156,7 @@ app.MapPost("/api/auth/refresh-token", async (AppDbContext db, HttpRequest reque
     if (user == null) return Results.Unauthorized();
 
     var newAccessToken = JwtHelper.GenerateAccessToken(user, minutes: 15);
-    return Results.Ok(new
-    {
-        AccessToken = newAccessToken
-    });
+    return Results.Ok(new { AccessToken = newAccessToken });
 });
 
 /* Update User.*/
@@ -209,8 +189,6 @@ app.MapDelete("/api/users/{id:int}", async (AppDbContext db, int id) =>
 
 
 // Configure the HTTP request pipeline.
-//app.UseAuthorization();
-//app.MapControllers();
 app.Run();
 
 
