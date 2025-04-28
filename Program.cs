@@ -92,8 +92,7 @@ app.MapGet("/api/users/{id}", async (AppDbContext db, int id) =>
     {
         return Results.NotFound(ResponseUtils.notFound(id));
     }
-
-    return Results.Ok(user);  // Return the user with HTTP 200 OK
+    return Results.Ok(user);
 });
 
 /* List all Users */
@@ -164,7 +163,7 @@ app.MapPost("/api/auth/refresh-token", async (AppDbContext db, HttpRequest reque
     if (string.IsNullOrEmpty(refreshToken)) return Results.BadRequest("Refresh token is required.");
 
     var principal = JwtHelper.ValidateToken(refreshToken);
-    
+
     if (principal == null) return Results.Unauthorized();
 
     var email = principal.FindFirst("nameid")?.Value;
@@ -180,11 +179,33 @@ app.MapPost("/api/auth/refresh-token", async (AppDbContext db, HttpRequest reque
     });
 });
 
-/* Update */
-/*app.MapPut("/api/users/{id}", (int id) =>
+/* Update User.*/
+app.MapPut("/api/users/{id:int}", async (AppDbContext db, int id, StoryUser updatedUser) =>
 {
-    return Results.Ok("Update");
-});*/
+    var user = await db.Users.FindAsync(id);
+    if (user == null)
+    {
+        return Results.NotFound();
+    }
+
+    user.Name = updatedUser.Name;
+    await db.SaveChangesAsync();
+    return Results.Ok(ResponseUtils.userUpdated(id));
+});
+
+/* Delete Story User by Id.*/
+app.MapDelete("/api/users/{id:int}", async (AppDbContext db, int id) =>
+{
+    var user = await db.Users.FindAsync(id);
+    if (user == null)
+    {
+        return Results.NotFound();
+    }
+
+    db.Users.Remove(user);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { message = $"User with id {id} deleted successfully." });
+});
 
 
 // Configure the HTTP request pipeline.
