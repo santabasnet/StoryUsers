@@ -1,0 +1,58 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using MyApiProject.Data;
+using MyApiProject.Models;
+
+namespace MyApiProject.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class UsersController : ControllerBase
+    {
+        private readonly AppDbContext _context;
+
+        public UsersController(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        // GET: api/users/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<User>> GetUser(int id)
+        {
+            var user = await _context.Users.FindAsync(id);
+
+            if (user == null)
+            {
+                return NotFound();  // 404 if user with the given id is not found
+            }
+
+            return Ok(user);  // Return the found user
+        }
+
+        // POST: api/users/register
+        [HttpPost("register")]
+        public async Task<ActionResult<User>> RegisterUser([FromBody] User user)
+        {
+            // Validate the input
+            if (user == null)
+            {
+                return BadRequest("User data is required.");
+            }
+
+            // Check if the email is already taken
+            var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
+            if (existingUser != null)
+            {
+                return Conflict("Email is already registered.");
+            }
+
+            // Add the new user to the Users table
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+
+            // Return a response with the created user (HTTP 201)
+            return CreatedAtAction(nameof(RegisterUser), new { id = user.Id }, user);
+        }
+    }
+}
