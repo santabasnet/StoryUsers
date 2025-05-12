@@ -1,0 +1,6 @@
+@StoryUserApi_HostAddress = http://localhost:5263
+
+GET {{StoryUserApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
